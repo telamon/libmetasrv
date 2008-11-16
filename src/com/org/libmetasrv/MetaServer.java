@@ -25,6 +25,7 @@ public abstract class MetaServer extends Thread {
     private ArrayList<Worker> workers = new ArrayList<Worker>();
     private static int workPos=0;
     private ArrayList<MetaClient> clients = new ArrayList<MetaClient>();
+    public boolean noServer = false;
     public MetaServer(){
         
     }
@@ -36,16 +37,19 @@ public abstract class MetaServer extends Thread {
             //Start listening on port
             java.net.ServerSocket server = null;
             try {
-                server = new java.net.ServerSocket(port);
-                System.out.println("Server started, listening on port: " + port);
-                alive = true;
-
                 //Start the workers
                 for (int i = 0; i < workerThreads; i++) {
                     Worker w = new Worker();
                     w.start();
                     workers.add(w);
                 }
+                alive = true;
+                if(noServer)
+                    return;
+                server = new java.net.ServerSocket(port);
+                System.out.println("Server started, listening on port: " + port);
+                
+                
             } catch (IOException e) {
                 System.err.println("Could not listen on port: " + port);
                 alive = false;
@@ -74,7 +78,9 @@ public abstract class MetaServer extends Thread {
         }
                 
     }
-    
+    public boolean isServerAlive(){
+        return alive;
+    }  
     /**
      * Is automatically called upon a new connection to the server
      * Override this function and return a Class based on the libmetasrv.MetaClient
@@ -145,7 +151,6 @@ public abstract class MetaServer extends Thread {
     }
 
 
-    
     class Worker extends Thread{
         
         @Override

@@ -35,7 +35,7 @@ import java.util.logging.Logger;
             oStream = socket.getOutputStream();
             iStream = socket.getInputStream();
         } catch (IOException ex) {
-            Logger.getLogger(test.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(TestServer.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     
@@ -54,7 +54,7 @@ import java.util.logging.Logger;
         try {
             socket.close();
         } catch (java.io.IOException ex) {
-            Logger.getLogger(test.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(TestServer.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     public byte[] readAvailable(){
@@ -68,6 +68,6 @@ import java.util.logging.Logger;
         }
         return null;
     }
-            
+      
     
 }
