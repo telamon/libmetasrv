@@ -28,6 +28,7 @@ public abstract class MetaServer extends Thread {
     public MetaServer(){
         
     }
+
     //Functions
     public void run(){
         //Start listening on port
@@ -82,7 +83,20 @@ public abstract class MetaServer extends Thread {
      * @return MetaClient Interface based class
      */
     public abstract MetaClient newClient(java.net.Socket sock);
-    
+    public boolean connectToRemote(String address,int port){
+        try {
+            java.net.Socket socker = new java.net.Socket();
+            socker.connect(new java.net.InetSocketAddress(address, port));
+            if(socker.isConnected()){
+                 clients.add(newClient(socker));
+                return true;
+            }
+            
+        } catch (IOException ex) {
+            Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return false;
+    }
     public void shutdown(){
         alive = false;
     }
