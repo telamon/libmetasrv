@@ -106,7 +106,13 @@ public abstract class MetaServer extends Thread {
     public void shutdown(){
         alive = false;
     }
-    
+    /**
+     * Same as broadcast()
+     * @param bytes
+     */
+    public void toAll(byte[] bytes) {
+        broadcast(bytes);
+    }
     public void broadcast(byte[] buffer){
         for(MetaClient mc : clients){
             try {
