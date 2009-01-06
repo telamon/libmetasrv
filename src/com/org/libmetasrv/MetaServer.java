@@ -26,9 +26,7 @@ public abstract class MetaServer extends Thread {
     private static int workPos=0;
     private ArrayList<MetaClient> clients = new ArrayList<MetaClient>();
     public boolean noServer = false;
-    public MetaServer(){
-        
-    }
+
 
     //Functions
     public void run(){
