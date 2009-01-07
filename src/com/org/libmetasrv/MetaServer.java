@@ -3,6 +3,7 @@ package com.org.libmetasrv;
 
 import java.io.IOException;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 
 /*
@@ -24,7 +25,7 @@ public abstract class MetaServer extends Thread {
     private boolean alive = false;    
     private ArrayList<Worker> workers = new ArrayList<Worker>();
     private static int workPos=0;
-    private ArrayList<MetaClient> clients = new ArrayList<MetaClient>();
+    protected ArrayList<MetaClient> clients = new ArrayList<MetaClient>();
     public boolean noServer = false;
 
 
@@ -46,7 +47,7 @@ public abstract class MetaServer extends Thread {
                     return;
                 server = new java.net.ServerSocket(port);
                 System.out.println("Server started, listening on port: " + port);
-                
+
                 
             } catch (IOException e) {
                 System.err.println("Could not listen on port: " + port);
@@ -54,17 +55,32 @@ public abstract class MetaServer extends Thread {
             }
 
 
-            //server.setSoTimeout(1000); // Set socket timeout so it has a chance to die when people press stop server.
+            server.setSoTimeout(1000); // Set socket timeout so it has a chance to die when people press stop server.
             //Accept incoming connections while "LISTENING" is true
             while (alive) {
-                java.net.Socket Ssock = server.accept();
-                if(maxConnections == -1 || clients.size() < maxConnections){
-                   clients.add(newClient(Ssock));
-                }else{
-                    Ssock.close();
+                try{
+                    java.net.Socket Ssock = server.accept();
+                    if(maxConnections == -1 || clients.size() < maxConnections){
+                       clients.add(newClient(Ssock));
+                    }else{
+                        Ssock.close();
+                    }
+                    
+                 }catch(SocketTimeoutException ex){
+                     
+                 }
+                //respawn any dead workers.
+                for(Worker w:workers){
+                    if(!w.isAlive()){
+                        workers.remove(w);
+                        System.err.println("R.I.P "+w);
+                        Worker peon = new Worker();
+                        workers.add(peon);
+                        peon.start();
+                        
+                    }
                 }
-                sleep(100);
-                
+                sleep(1000);
             }
             server.close();
         } catch (SocketException ex) {
@@ -159,23 +175,43 @@ public abstract class MetaServer extends Thread {
         
         @Override
         public void run(){
+            try {
+                sleep(2000);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+            }
             while(alive){                
                 try {
                     if(clients.size()>0){
-                        MetaClient mc = clients.get(workPos);
-                        workPos++;
-                        if (workPos >= clients.size()){
-                            workPos=0;
+//                        if (workPos >= clients.size()){
+//                            workPos=0;
+//                        }
+//                        
+//                        MetaClient mc = clients.get(workPos);
+//                        workPos++;
+                        MetaClient mc = clients.remove(0);
+                        // Kill the client if connections is broken
+                        if(mc.socket.isClosed()){
+                            mc.killClient();
                         }
-
+                        // Unlock the client if the worker died.
+                        if(mc.isLocked() && !mc.mWorker.isAlive()){
+                            mc.unlock();
+                        }
+                        // Work.
                         if(!mc.isLocked()){
-                            mc.lock();
+                            mc.lock(this);
                             mc.process();
                             mc.heartBeat = System.nanoTime();
                             mc.unlock();
                         }
+                        clients.add(mc);
                     }
                     sleep(10);
+                
+                } catch(java.lang.IndexOutOfBoundsException ex){
+                    ex.printStackTrace();
+                    System.out.println("S:"+clients.size()+" P:"+workPos + " T:"+workers.size());
                 } catch (InterruptedException ex) {
                     Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
                 }

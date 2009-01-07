@@ -29,7 +29,7 @@ public class TestServer {
     class ChatCLNT extends MetaClient{
       public ChatCLNT(MetaServer aThis,Socket s){
             try {
-                server = aThis;
+                mServer = aThis;
                 socket = s;
                 oStream = socket.getOutputStream();
                 iStream = socket.getInputStream();
@@ -53,7 +53,7 @@ public class TestServer {
                             byte[] buffer = readAvailable();
                             
                             System.out.println(Macros.byteArrayToHexView(buffer));
-                            server.toAllExcept(this, buffer);
+                            mServer.toAllExcept(this, buffer);
                             oStream.write("processing! OK!\n".getBytes());
                             oStream.flush();
                             

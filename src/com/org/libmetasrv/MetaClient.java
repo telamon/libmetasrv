@@ -1,6 +1,7 @@
 package com.org.libmetasrv;
 
 
+import com.org.libmetasrv.MetaServer.Worker;
 import java.io.IOException;
 import java.util.logging.Level;
 
@@ -17,7 +18,8 @@ import java.util.logging.Logger;
  * @author lordtelamon
  */
  public abstract class MetaClient {
-    protected MetaServer server;
+    protected Worker mWorker;
+    protected MetaServer mServer;
     public java.net.Socket socket = null;
     public java.io.OutputStream oStream;
     public java.io.InputStream iStream;    
@@ -30,7 +32,7 @@ import java.util.logging.Logger;
     }
     public MetaClient(MetaServer aThis,java.net.Socket s){
         try {
-            server = aThis;
+            mServer = aThis;
             socket = s;
             oStream = socket.getOutputStream();
             iStream = socket.getInputStream();
@@ -39,9 +41,7 @@ import java.util.logging.Logger;
         }
     }
     
-    protected void lock(){
-        locked=true;
-    }
+
     protected void unlock(){
         locked=false;
     }
@@ -52,6 +52,7 @@ import java.util.logging.Logger;
     public abstract boolean handshake();
     public void killClient() {
         try {
+            mServer.clients.remove(this);
             socket.close();
         } catch (java.io.IOException ex) {
             Logger.getLogger(TestServer.class.getName()).log(Level.SEVERE, null, ex);
@@ -67,6 +68,11 @@ import java.util.logging.Logger;
             Logger.getLogger(MetaClient.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
+    }
+
+    void lock(Worker aThis) {
+        locked=true;
+        mWorker = aThis;
     }
       
     

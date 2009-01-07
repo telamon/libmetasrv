@@ -35,7 +35,7 @@ public class TestClient {
 
         private MyClient(MySocketHandler aThis, Socket sock) {
             try {
-                server = aThis;
+                mServer = aThis;
                 socket = sock;
                 oStream = socket.getOutputStream();
                 iStream = socket.getInputStream();
@@ -56,12 +56,12 @@ public class TestClient {
                         break;
                     case 1:
                          if(!socket.isConnected())
-                             server.shutdown();
+                             mServer.shutdown();
                          if(iStream.available()>0){
                             byte[] buffer = readAvailable();
                             
                             System.out.println(Macros.byteArrayToHexView(buffer));
-                            server.toAllExcept(this, buffer);
+                            mServer.toAllExcept(this, buffer);
                             //oStream.write("processing! OK!\n".getBytes());
                             //oStream.flush();
                             
