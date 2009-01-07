@@ -183,29 +183,31 @@ public abstract class MetaServer extends Thread {
             while(alive){                
                 try {
                     if(clients.size()>0){
-//                        if (workPos >= clients.size()){
-//                            workPos=0;
-//                        }
-//                        
-//                        MetaClient mc = clients.get(workPos);
-//                        workPos++;
-                        MetaClient mc = clients.remove(0);
-                        // Kill the client if connections is broken
-                        if(mc.socket.isClosed()){
-                            mc.killClient();
+                        if (workPos >= clients.size()){
+                            workPos=0;
                         }
+                        
+                        MetaClient mc = clients.get(workPos);
+                        workPos++;
+//                        MetaClient mc = clients.remove(0);
+
+
+                        // Work.
+                        if(!mc.isLocked()){
+                            mc.lock(this); // Lock it with our seal.
+                            // Kill the client if connection is dead.
+                            if(mc.socket.isClosed()){
+                                mc.killClient();
+                            }
+                            mc.process();
+                            mc.heartBeat = System.nanoTime();
+                            mc.unlock();
+                        }else
                         // Unlock the client if the worker died.
                         if(mc.isLocked() && !mc.mWorker.isAlive()){
                             mc.unlock();
                         }
-                        // Work.
-                        if(!mc.isLocked()){
-                            mc.lock(this);
-                            mc.process();
-                            mc.heartBeat = System.nanoTime();
-                            mc.unlock();
-                        }
-                        clients.add(mc);
+//                        clients.add(mc);
                     }
                     sleep(10);
                 
