@@ -98,9 +98,9 @@ public abstract class MetaServer extends Thread {
     private void bindPort(){
                  
             // Set socket timeout so it has a chance to die when people press stop server.            
-            try {
-                server.setSoTimeout(1000);
+            try {                
                 server = new java.net.ServerSocket(port);
+                server.setSoTimeout(1000);
                 System.out.println("Server started, listening on port: " + port);           
             } catch (IOException e) {
                 System.err.println("Could not listen on port: " + port);
