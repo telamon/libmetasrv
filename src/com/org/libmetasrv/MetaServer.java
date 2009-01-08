@@ -215,6 +215,12 @@ public abstract class MetaServer extends Thread {
                             // Kill the client if connection is dead.
                             if(mc.socket.isClosed()){
                                 mc.killClient();
+                                //If this was a single client-mode instance
+                                // then shutdown the framework when the socket
+                                // dies.
+                                if(clientMode){
+                                    shutdown();
+                                }
                             }
                             mc.process();
                             mc.heartBeat = System.nanoTime();
