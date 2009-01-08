@@ -26,49 +26,37 @@ public abstract class MetaServer extends Thread {
     private ArrayList<Worker> workers = new ArrayList<Worker>();
     private static int workPos=0;
     protected ArrayList<MetaClient> clients = new ArrayList<MetaClient>();
-    public boolean noServer = false;
-
-
-    //Functions
+    public boolean clientMode = false;
+    private static java.net.ServerSocket server = null;
+    
+    public void clientMode(String address,int port){
+        clientMode=true;
+        workerThreads = 1;
+        this.start();
+        connectToRemote(address,port);        
+    }
+       
     public void run(){
-        //Start listening on port
+        
         try {
-            //Start listening on port
-            java.net.ServerSocket server = null;
-            try {
-                //Start the workers
-                for (int i = 0; i < workerThreads; i++) {
-                    Worker w = new Worker();
-                    w.start();
-                    workers.add(w);
-                }
-                alive = true;
-                if(noServer)
-                    return;
-                server = new java.net.ServerSocket(port);
-                System.out.println("Server started, listening on port: " + port);
-
-                
-            } catch (IOException e) {
-                System.err.println("Could not listen on port: " + port);
-                alive = false;
+            alive = true;
+            
+            //Start the workers
+            for (int i = 0; i < workerThreads; i++) {
+                Worker w = new Worker();
+                w.start();
+                workers.add(w);
             }
-
-
-            server.setSoTimeout(1000); // Set socket timeout so it has a chance to die when people press stop server.
-            //Accept incoming connections while "LISTENING" is true
+            
+            //Start listening on port
+            if(!clientMode){
+                bindPort();
+            }
+            
             while (alive) {
-                try{
-                    java.net.Socket Ssock = server.accept();
-                    if(maxConnections == -1 || clients.size() < maxConnections){
-                       clients.add(newClient(Ssock));
-                    }else{
-                        Ssock.close();
-                    }
-                    
-                 }catch(SocketTimeoutException ex){
-                     
-                 }
+                if(!clientMode){
+                    acceptConnections();
+                }
                 //respawn any dead workers.
                 for(Worker w:workers){
                     if(!w.isAlive()){
@@ -92,6 +80,34 @@ public abstract class MetaServer extends Thread {
         }
                 
     }
+
+    private void acceptConnections() {
+        try{
+            java.net.Socket Ssock = server.accept();
+            if(maxConnections == -1 || clients.size() < maxConnections){
+               clients.add(newClient(Ssock));
+            }else{
+                Ssock.close();
+            }            
+        }catch(SocketTimeoutException ex){
+            //Ignore socket timeouts.
+        } catch (IOException ex) {
+            Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    private void bindPort(){
+                 
+            // Set socket timeout so it has a chance to die when people press stop server.            
+            try {
+                server.setSoTimeout(1000);
+                server = new java.net.ServerSocket(port);
+                System.out.println("Server started, listening on port: " + port);           
+            } catch (IOException e) {
+                System.err.println("Could not listen on port: " + port);
+                alive = false;
+            }
+    }
+
     public boolean isServerAlive(){
         return alive;
     }  
@@ -103,6 +119,7 @@ public abstract class MetaServer extends Thread {
      * @return MetaClient Interface based class
      */
     public abstract MetaClient newClient(java.net.Socket sock);
+    
     public boolean connectToRemote(String address,int port){
         try {
             java.net.Socket socker = new java.net.Socket();

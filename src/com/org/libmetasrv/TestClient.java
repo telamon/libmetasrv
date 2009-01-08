@@ -19,7 +19,7 @@ public class TestClient {
     public TestClient(){
         MySocketHandler msh = new MySocketHandler();
         msh.workerThreads=1;
-        msh.noServer=true;
+        msh.clientMode=true;
         msh.start();
         msh.connectToRemote("irc.efnet.pl", 6667);
         while(msh.isServerAlive()){
