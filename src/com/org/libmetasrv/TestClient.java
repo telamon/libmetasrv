@@ -21,7 +21,11 @@ public class TestClient {
         msh.workerThreads=1;
         msh.clientMode=true;
         msh.start();
-        msh.connectToRemote("irc.efnet.pl", 6667);
+        try {
+            msh.connectToRemote("irc.efnet.pl", 6667);
+        } catch (IOException ex) {
+            Logger.getLogger(TestClient.class.getName()).log(Level.SEVERE, null, ex);
+        }
         while(msh.isServerAlive()){
             
         }

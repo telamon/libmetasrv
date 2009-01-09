@@ -32,8 +32,14 @@ public abstract class MetaServer extends Thread {
     public void clientMode(String address,int port){
         clientMode=true;
         workerThreads = 1;
-        this.start();
-        connectToRemote(address,port);        
+        try {
+            connectToRemote(address, port);
+        } catch (IOException ex) {
+            System.err.println("Failed to connect, resetting server.");
+            shutdown();
+            //Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        this.start();      
     }
        
     public void run(){
@@ -70,7 +76,9 @@ public abstract class MetaServer extends Thread {
                 }
                 sleep(1000);
             }
-            server.close();
+            if(!clientMode){
+                server.close();
+            }
         } catch (SocketException ex) {
             Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
@@ -120,22 +128,40 @@ public abstract class MetaServer extends Thread {
      */
     public abstract MetaClient newClient(java.net.Socket sock);
     
-    public boolean connectToRemote(String address,int port){
-        try {
-            java.net.Socket socker = new java.net.Socket();
-            socker.connect(new java.net.InetSocketAddress(address, port));
-            if(socker.isConnected()){
-                 clients.add(newClient(socker));
-                return true;
-            }
-            
-        } catch (IOException ex) {
-            Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+    public void connectToRemote(String address,int port) throws IOException{
+        java.net.Socket socker = new java.net.Socket();
+        socker.connect(new java.net.InetSocketAddress(address, port));
+        if(socker.isConnected()){
+            clients.add(newClient(socker));
+
         }
-        return false;
     }
-    public void shutdown(){
-        alive = false;
+    public void shutdown() {
+        // Die and reset the server to defaults.
+        alive = false;        
+        
+        int aliveThreads=0;
+        while(aliveThreads >0){
+            aliveThreads = 0;
+            for(Worker w:workers){
+                if(w.isAlive()){
+                    aliveThreads++;
+                }
+            }
+            if(this.isAlive()){
+                aliveThreads++;
+            }
+            try {
+                sleep(500);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        workers.clear();
+        clients.clear();
+        workPos=0;
+        
+        
     }
     /**
      * Same as broadcast()
