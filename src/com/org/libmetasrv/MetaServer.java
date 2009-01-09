@@ -39,8 +39,8 @@ public abstract class MetaServer extends Thread {
         clientMode=true;
         workerThreads = 1;
         try {
-            connectToRemote(address, port);
-            this.start(); 
+            this.start();
+            connectToRemote(address, port);             
         } catch (IOException ex) {
             System.err.println("Failed to connect, resetting server.");
             shutdown();
@@ -49,51 +49,74 @@ public abstract class MetaServer extends Thread {
              
     }
        
-    public void run(){
-        
+    public void run() {
+
         try {
             alive = true;
-            
+
             //Start the workers
             for (int i = 0; i < workerThreads; i++) {
                 Worker w = new Worker();
                 w.start();
                 workers.add(w);
             }
-            
+
             //Start listening on port
-            if(!clientMode){
+            if (!clientMode) {
                 bindPort();
             }
-            
+
             while (alive) {
-                if(!clientMode){
+                if (!clientMode) {
                     acceptConnections();
                 }
                 //respawn any dead workers.
-                for(Worker w:workers){
-                    if(!w.isAlive()){
+                for (Worker w : workers) {
+                    if (!w.isAlive()) {
                         workers.remove(w);
-                        System.err.println("R.I.P "+w);
+                        System.err.println("R.I.P " + w);
                         Worker peon = new Worker();
                         workers.add(peon);
                         peon.start();
-                        
+
                     }
                 }
                 sleep(1000);
             }
-            if(!clientMode){
+            if (!clientMode && server.isBound()) {
                 server.close();
             }
+            
         } catch (SocketException ex) {
             Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
         } catch (IOException ex) {
-                    Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
-        }catch (InterruptedException ex) {
-                    Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (InterruptedException ex) {
+            Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
         }
-                
+        // Cleanup before resting in peace.
+        int aliveThreads=0;
+        while(aliveThreads >0){
+            aliveThreads = 0;
+            for(Worker w:workers){
+                if(w.isAlive()){
+                    aliveThreads++;
+                }
+            }
+            if(this.isAlive()){
+                aliveThreads++;
+            }
+            try {
+                sleep(500);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        workers.clear();
+        clients.clear();
+        workPos=0;
+        resetInstance();
+        System.err.println("Bye Bye cruel world!");
     }
 
     private void acceptConnections() {
@@ -146,28 +169,6 @@ public abstract class MetaServer extends Thread {
     public void shutdown() {
         // Die and reset the server to defaults.
         alive = false;        
-        
-        int aliveThreads=0;
-        while(aliveThreads >0){
-            aliveThreads = 0;
-            for(Worker w:workers){
-                if(w.isAlive()){
-                    aliveThreads++;
-                }
-            }
-            if(this.isAlive()){
-                aliveThreads++;
-            }
-            try {
-                sleep(500);
-            } catch (InterruptedException ex) {
-                Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-        workers.clear();
-        clients.clear();
-        workPos=0;
-        resetInstance();
         
     }
     /**
