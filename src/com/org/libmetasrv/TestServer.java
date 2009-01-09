@@ -85,6 +85,11 @@ public class TestServer {
         public MetaClient newClient(Socket sock) {
             return new ChatCLNT(this,sock);
         }
+
+        @Override
+        protected void resetInstance() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
         
     }
 }

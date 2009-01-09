@@ -18,6 +18,7 @@ import java.util.logging.Logger;
  * @author Tony Ivanov
  */
 public abstract class MetaServer extends Thread {
+    
     //Options
     public int port = 5525;
     public int maxConnections = -1;
@@ -27,19 +28,25 @@ public abstract class MetaServer extends Thread {
     private static int workPos=0;
     protected ArrayList<MetaClient> clients = new ArrayList<MetaClient>();
     public boolean clientMode = false;
-    private static java.net.ServerSocket server = null;
-    
+    private static java.net.ServerSocket server = null;  
+
+    protected abstract void resetInstance();
     public void clientMode(String address,int port){
+        if(alive){
+            System.err.println("Server already running!");
+            return;
+        }
         clientMode=true;
         workerThreads = 1;
         try {
             connectToRemote(address, port);
+            this.start(); 
         } catch (IOException ex) {
             System.err.println("Failed to connect, resetting server.");
             shutdown();
             //Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
         }
-        this.start();      
+             
     }
        
     public void run(){
@@ -160,7 +167,7 @@ public abstract class MetaServer extends Thread {
         workers.clear();
         clients.clear();
         workPos=0;
-        
+        resetInstance();
         
     }
     /**

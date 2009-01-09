@@ -99,6 +99,11 @@ public class TestClient {
         public MetaClient newClient(Socket sock) {
             return new MyClient(this,sock);
         }
+
+        @Override
+        protected void resetInstance() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
         
     }
 }
