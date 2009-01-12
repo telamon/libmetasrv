@@ -31,22 +31,23 @@ public abstract class MetaServer extends Thread {
     private static java.net.ServerSocket server = null;  
 
     protected abstract void resetInstance();
-    public void clientMode(String address,int port){
+    public boolean clientMode(String address,int port){
         if(alive){
             System.err.println("Server already running!");
-            return;
+            return false;
         }
         clientMode=true;
         workerThreads = 1;
         try {
             this.start();
-            connectToRemote(address, port);             
+            connectToRemote(address, port); 
+            return true;
         } catch (IOException ex) {
             System.err.println("Failed to connect, resetting server.");
             shutdown();
             //Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
         }
-             
+        return false;     
     }
        
     public void run() {
