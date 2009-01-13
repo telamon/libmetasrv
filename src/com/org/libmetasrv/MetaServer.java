@@ -27,6 +27,8 @@ public abstract class MetaServer extends Thread {
     private ArrayList<Worker> workers = new ArrayList<Worker>();
     private static int workPos=0;
     protected ArrayList<MetaClient> clients = new ArrayList<MetaClient>();
+    protected ArrayList<MetaClient> workQue = new ArrayList<MetaClient>();
+    private TaskMaster mTaskMaster;
     public boolean clientMode = false;
     private static java.net.ServerSocket server = null;  
 
@@ -49,7 +51,7 @@ public abstract class MetaServer extends Thread {
         }
         return false;     
     }
-       
+
     public void run() {
 
         try {
@@ -61,26 +63,19 @@ public abstract class MetaServer extends Thread {
                 w.start();
                 workers.add(w);
             }
-
+            mTaskMaster = new TaskMaster();
+            
             //Start listening on port
             if (!clientMode) {
-                bindPort();
+                bindPort();                
+                mTaskMaster.start(); // spawn a taskmaster.
+            }else{
+                mTaskMaster.run(); //become the taskmaster yourself.
             }
-
+            
             while (alive) {
                 if (!clientMode) {
                     acceptConnections();
-                }
-                //respawn any dead workers.
-                for (Worker w : workers) {
-                    if (!w.isAlive()) {
-                        workers.remove(w);
-                        System.err.println("R.I.P " + w);
-                        Worker peon = new Worker();
-                        workers.add(peon);
-                        peon.start();
-
-                    }
                 }
                 sleep(1000);
             }
@@ -103,6 +98,9 @@ public abstract class MetaServer extends Thread {
                 if(w.isAlive()){
                     aliveThreads++;
                 }
+            }
+            if(mTaskMaster.isAlive()){
+                aliveThreads++;
             }
             if(this.isAlive()){
                 aliveThreads++;
@@ -221,32 +219,59 @@ public abstract class MetaServer extends Thread {
             }
         }
     }
+    
+    /** The overseer*/
+    class TaskMaster extends Thread{
+        @Override
+        public void run(){
+            while(alive){
+                try {
+                    for (MetaClient mc : clients) {
+                        
 
+                        // Unlock the client if the worker died.
+                        if (mc.isLocked() && !mc.mWorker.isAlive()) {
+                            mc.unlock();
+                        }
+                        if (!mc.isLocked() && !mc.socket.isClosed() &&mc.iStream.available() > 0) {
+                            workQue.add(mc);
+                        }
+                    }
+                    
+                    //respawn any dead workers.
+                    for (Worker w : workers) {
+                        if (!w.isAlive()) {
+                            workers.remove(w);
+                            System.err.println("R.I.P " + w);
+                            Worker peon = new Worker();
+                            workers.add(peon);
+                            peon.start();
 
+                        }
+                    }
+                    
+                    sleep(40);
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (IOException ex) {
+                            Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        }
+    }
+
+    /** the expendable */
     class Worker extends Thread{
         
         @Override
         public void run(){
-            try {
-                sleep(2000);
-            } catch (InterruptedException ex) {
-                Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
-            }
+
             while(alive){                
                 try {
-                    if(clients.size()>0){
-                        if (workPos >= clients.size()){
-                            workPos=0;
-                        }
-                        
-                        MetaClient mc = clients.get(workPos);
-                        workPos++;
-//                        MetaClient mc = clients.remove(0);
-
-
+                    if(!workQue.isEmpty()){                                                
+                        MetaClient mc = workQue.remove(0);
                         // Work.
                         if(!mc.isLocked()){
-                            mc.lock(this); // Lock it with our seal.
                             // Kill the client if connection is dead.
                             if(mc.socket.isClosed()){
                                 mc.killClient();
@@ -256,22 +281,20 @@ public abstract class MetaServer extends Thread {
                                 if(clientMode){
                                     shutdown();
                                 }
-                            }
+                            }   
+
+                            mc.lock(this); // Lock it with our seal.
                             mc.process();
                             mc.heartBeat = System.nanoTime();
                             mc.unlock();
-                        }else
-                        // Unlock the client if the worker died.
-                        if(mc.isLocked() && !mc.mWorker.isAlive()){
-                            mc.unlock();
                         }
-//                        clients.add(mc);
+                        
                     }
-                    sleep(10);
-                
+                    sleep(30);
                 } catch(java.lang.IndexOutOfBoundsException ex){
-                    ex.printStackTrace();
-                    System.out.println("S:"+clients.size()+" P:"+workPos + " T:"+workers.size());
+                    //I suspect this is just a spook of concurrent arraylist modifications.
+                    //ex.printStackTrace();
+                    //System.out.println("S:"+clients.size()+" P:"+workPos + " T:"+workers.size());
                 } catch (InterruptedException ex) {
                     Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
                 }

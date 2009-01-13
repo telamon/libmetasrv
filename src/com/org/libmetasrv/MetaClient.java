@@ -52,6 +52,7 @@ import java.util.logging.Logger;
     public abstract boolean handshake();
     public void killClient() {
         try {
+            System.out.println("Client removed:"+this.toString());
             mServer.clients.remove(this);
             socket.close();
         } catch (java.io.IOException ex) {
