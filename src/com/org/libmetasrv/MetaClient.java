@@ -3,6 +3,8 @@ package com.org.libmetasrv;
 
 import com.org.libmetasrv.MetaServer.Worker;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.logging.Level;
 
 
@@ -63,8 +65,24 @@ import java.util.logging.Logger;
         try {
             byte[] buffer = new byte[iStream.available()];
             iStream.read(buffer);
-            //System.out.println(Macros.byteArrayToHexView(buffer));
-            return(buffer);
+//            System.out.println(Macros.byteArrayToHexView(buffer));
+            return buffer;
+        } catch (IOException ex) {
+            Logger.getLogger(MetaClient.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
+    }
+    public byte[] read(int size){
+        try {
+            ByteBuffer buffer = ByteBuffer.allocate(size);
+            while(buffer.position()<buffer.capacity()){
+                int b = iStream.read();
+                if(b==-1){
+                    System.err.println("Warning! read -1 from stream!");
+                }
+                buffer.put((byte)b);
+            }
+            return buffer.array();
         } catch (IOException ex) {
             Logger.getLogger(MetaClient.class.getName()).log(Level.SEVERE, null, ex);
         }

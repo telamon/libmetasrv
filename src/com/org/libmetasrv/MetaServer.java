@@ -23,14 +23,15 @@ public abstract class MetaServer extends Thread {
     public int port = 5525;
     public int maxConnections = -1;
     public int workerThreads = 2;
+    
     private boolean alive = false;    
     private ArrayList<Worker> workers = new ArrayList<Worker>();
     private static int workPos=0;
     protected ArrayList<MetaClient> clients = new ArrayList<MetaClient>();
-    protected ArrayList<MetaClient> workQue = new ArrayList<MetaClient>();
+    //protected ArrayList<MetaClient> workQue = new ArrayList<MetaClient>();
     private TaskMaster mTaskMaster;
     public boolean clientMode = false;
-    private static java.net.ServerSocket server = null;  
+    protected static java.net.ServerSocket server = null;  
 
     protected abstract void resetInstance();
     public boolean clientMode(String address,int port){
@@ -53,7 +54,7 @@ public abstract class MetaServer extends Thread {
     }
 
     public void run() {
-
+        this.setName(this.getClass().getSimpleName());
         try {
             alive = true;
 
@@ -77,7 +78,7 @@ public abstract class MetaServer extends Thread {
                 if (!clientMode) {
                     acceptConnections();
                 }
-                sleep(1000);
+                sleep(40);
             }
             if (!clientMode && server.isBound()) {
                 server.close();
@@ -136,7 +137,7 @@ public abstract class MetaServer extends Thread {
                  
             // Set socket timeout so it has a chance to die when people press stop server.            
             try {                
-                server = new java.net.ServerSocket(port);
+                server = new java.net.ServerSocket(port);                
                 server.setSoTimeout(1000);
                 System.out.println("Server started, listening on port: " + port);           
             } catch (IOException e) {
@@ -222,39 +223,49 @@ public abstract class MetaServer extends Thread {
     
     /** The overseer*/
     class TaskMaster extends Thread{
+        private Worker getLivingWorker() throws InterruptedException{             
+            while(true){
+                ArrayList<Worker> zombies = new ArrayList<Worker>();
+                for(Worker w:workers){
+                    if(!w.busy){
+                        return w;
+                    }else if(!w.isAlive()){
+                        zombies.add(w);
+                    }
+                }
+                for(Worker w:zombies){
+                    workers.remove(w);
+                    System.err.println("R.I.P " + w);
+                    Worker peon = new Worker();
+                    workers.add(peon);
+                    peon.start();
+                }
+                if(zombies.size()<1){
+                    sleep(30);
+                }
+            }
+        }
         @Override
         public void run(){
+            this.setName(this.getClass().getSimpleName());
             while(alive){
                 try {
-                    for (MetaClient mc : clients) {
-                        
-
+                    for (MetaClient mc : clients) {                        
                         // Unlock the client if the worker died.
                         if (mc.isLocked() && !mc.mWorker.isAlive()) {
                             mc.unlock();
                         }
-                        if (!mc.isLocked() && !mc.socket.isClosed() &&mc.iStream.available() > 0) {
-                            workQue.add(mc);
+                        if(!mc.isLocked()){
+                            Worker w=getLivingWorker();
+                            w.task=mc;
+                            w.busy=true;
                         }
-                    }
-                    
-                    //respawn any dead workers.
-                    for (Worker w : workers) {
-                        if (!w.isAlive()) {
-                            workers.remove(w);
-                            System.err.println("R.I.P " + w);
-                            Worker peon = new Worker();
-                            workers.add(peon);
-                            peon.start();
 
-                        }
                     }
                     
                     sleep(40);
                 } catch (InterruptedException ex) {
                     Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (IOException ex) {
-                            Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
         }
@@ -262,33 +273,31 @@ public abstract class MetaServer extends Thread {
 
     /** the expendable */
     class Worker extends Thread{
-        
+        MetaClient task;
+        boolean busy=false;
         @Override
         public void run(){
-
+            this.setName(this.getClass().getSimpleName());
             while(alive){                
                 try {
-                    if(!workQue.isEmpty()){                                                
-                        MetaClient mc = workQue.remove(0);
-                        // Work.
-                        if(!mc.isLocked()){
-                            // Kill the client if connection is dead.
-                            if(mc.socket.isClosed()){
-                                mc.killClient();
-                                //If this was a single client-mode instance
-                                // then shutdown the framework when the socket
-                                // dies.
-                                if(clientMode){
-                                    shutdown();
-                                }
-                            }   
-
-                            mc.lock(this); // Lock it with our seal.
-                            mc.process();
-                            mc.heartBeat = System.nanoTime();
-                            mc.unlock();
-                        }
-                        
+                    if(busy){
+                        // Work.                       
+                        // Kill the client if connection is dead.
+                        if(task.socket.isClosed()){
+                            task.killClient();
+                            //If this was a single client-mode instance
+                            // then shutdown the framework when the socket
+                            // dies.
+                            if(clientMode){
+                                shutdown();
+                            }
+                        }   
+                        task.lock(this); // Lock it with our seal.
+                        task.process();
+                        task.heartBeat = System.nanoTime();
+                        task.unlock();
+                        task=null;
+                        busy=false;
                     }
                     sleep(30);
                 } catch(java.lang.IndexOutOfBoundsException ex){
