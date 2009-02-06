@@ -93,6 +93,11 @@ import java.util.logging.Logger;
         locked=true;
         mWorker = aThis;
     }
+
+    public void send(byte[] buffer) throws IOException {
+        oStream.write(buffer);
+        oStream.flush();
+    }
       
     
 }

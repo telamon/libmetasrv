@@ -1,6 +1,7 @@
 package com.org.libmetasrv;
 
 
+
 import java.io.IOException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
@@ -31,26 +32,27 @@ public abstract class MetaServer extends Thread {
     //protected ArrayList<MetaClient> workQue = new ArrayList<MetaClient>();
     private TaskMaster mTaskMaster;
     public boolean clientMode = false;
-    protected static java.net.ServerSocket server = null;  
+    protected static java.net.ServerSocket server = null;
+
+
 
     protected abstract void resetInstance();
-    public boolean clientMode(String address,int port){
+
+    public void clientMode(String address,int port) throws MetaSrvException{
         if(alive){
-            System.err.println("Server already running!");
-            return false;
+            throw new MetaSrvException("Server already running!");            
         }
         clientMode=true;
         workerThreads = 1;
         try {
             this.start();
             connectToRemote(address, port); 
-            return true;
-        } catch (IOException ex) {
-            System.err.println("Failed to connect, resetting server.");
+            return;
+        } catch (IOException ex) {            
             shutdown();
+            throw new MetaSrvException("Failed to connect, resetting server.");
             //Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        return false;     
+        } 
     }
 
     public void run() {
@@ -181,9 +183,9 @@ public abstract class MetaServer extends Thread {
     public void broadcast(byte[] buffer){
         for(MetaClient mc : clients){
             try {
-                mc.socket.getOutputStream().write(buffer);
-                mc.socket.getOutputStream().flush();
+                mc.send(buffer);                
             } catch (IOException ex) {
+                mc.killClient();
                 Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
@@ -201,9 +203,9 @@ public abstract class MetaServer extends Thread {
                 }
                 if(doit){
                     try {
-                        mc.socket.getOutputStream().write(buffer);
-                        mc.socket.getOutputStream().flush();
+                        mc.send(buffer);
                     } catch (IOException ex) {
+                        mc.killClient();
                         Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 }
@@ -213,8 +215,7 @@ public abstract class MetaServer extends Thread {
     public void toOnly(MetaClient[] mcs,byte[] buffer){
         for(MetaClient mc: mcs){
             try {
-                mc.socket.getOutputStream().write(buffer);
-                mc.socket.getOutputStream().flush();
+                mc.send(buffer);
             } catch (IOException ex) {
                 Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
             }
