@@ -44,7 +44,7 @@ import java.util.logging.Logger;
     }
     
 
-    protected void unlock(){
+    synchronized protected void unlock(){
         locked=false;
     }
     protected boolean isLocked(){
@@ -89,7 +89,7 @@ import java.util.logging.Logger;
         return null;
     }
 
-    void lock(Worker aThis) {
+    synchronized void lock(Worker aThis) {
         locked=true;
         mWorker = aThis;
     }

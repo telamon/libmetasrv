@@ -105,7 +105,7 @@ public abstract class MetaServer extends Thread {
             if(mTaskMaster.isAlive()){
                 aliveThreads++;
             }
-            if(this.isAlive()){
+            if(this.isServerAlive()){
                 aliveThreads++;
             }
             try {
@@ -125,7 +125,12 @@ public abstract class MetaServer extends Thread {
         try{
             java.net.Socket Ssock = server.accept();
             if(maxConnections == -1 || clients.size() < maxConnections){
-               clients.add(newClient(Ssock));
+               MetaClient c = newClient(Ssock);
+               if(c!=null){
+                   clients.add(c);
+               }else{
+                   Ssock.close();
+               }
             }else{
                 Ssock.close();
             }            
