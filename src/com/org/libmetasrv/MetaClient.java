@@ -72,7 +72,7 @@ import java.util.logging.Logger;
         }
         return null;
     }
-    public byte[] read(int size){
+    synchronized public byte[] read(int size){
         try {
             ByteBuffer buffer = ByteBuffer.allocate(size);
             while(buffer.position()<buffer.capacity()){
@@ -94,7 +94,7 @@ import java.util.logging.Logger;
         mWorker = aThis;
     }
 
-    public void send(byte[] buffer) throws IOException {
+    synchronized public void send(byte[] buffer) throws IOException {
         oStream.write(buffer);
         oStream.flush();
     }

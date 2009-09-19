@@ -89,9 +89,9 @@ package com.org.libmetasrv;
           int newrow =0;
          for(int i =0; i< inc.length; i++){
              if(i >= newrow){
-                DebugLine+= Ascii + "\n";
+                DebugLine+= Ascii + "\n" +newrow+"|";
                 Ascii = "";
-                newrow += 16;
+                newrow += 10;
              } 
              byte tmpByte = datb.get();
              DebugLine += Macros.byteToHex(tmpByte) +" ";                        
