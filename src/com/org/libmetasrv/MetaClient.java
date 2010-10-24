@@ -55,7 +55,7 @@ import java.util.logging.Logger;
     public void killClient() {
         try {
             System.out.println("Client removed:"+this.toString());
-            mServer.clients.remove(this);
+            mServer.removeClient(this);
             socket.close();
         } catch (java.io.IOException ex) {
             Logger.getLogger(TestServer.class.getName()).log(Level.SEVERE, null, ex);

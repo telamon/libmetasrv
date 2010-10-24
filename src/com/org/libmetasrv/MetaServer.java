@@ -6,11 +6,13 @@ import java.io.IOException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 /*
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
- */
+ */import java.util.Vector;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,15 +28,39 @@ public abstract class MetaServer extends Thread {
     public int workerThreads = 2;
     
     private boolean alive = false;    
-    private ArrayList<Worker> workers = new ArrayList<Worker>();
-    private static int workPos=0;
-    protected ArrayList<MetaClient> clients = new ArrayList<MetaClient>();
+    private Vector<Worker> workers = new Vector<Worker>();    
+    private final java.util.List<MetaClient> clientsList = new ArrayList<MetaClient>();
+    private MetaClient[] clientsCache;
     //protected ArrayList<MetaClient> workQue = new ArrayList<MetaClient>();
     private TaskMaster mTaskMaster;
     public boolean clientMode = false;
     protected static java.net.ServerSocket server = null;
 
-
+    protected void addClient(MetaClient l) {
+       synchronized(clientsList) {
+            clientsList.add(l);
+            clientsCache=null;
+        }
+    }
+    protected void removeClient(MetaClient l) {
+        synchronized(clientsList) {
+            clientsList.remove(l);
+            clientsCache=null;
+        }
+    }
+    protected MetaClient[] getClients(){
+        synchronized(clientsList){
+            if(clientsCache==null)
+                 clientsCache= clientsList.toArray(new MetaClient[clientsList.size()]);
+            return clientsCache;
+        }
+    }
+    protected void clearClients(){
+        synchronized(clientsList){
+            clientsList.clear();
+            clientsCache=null;
+        }
+    }
 
     protected abstract void resetInstance();
 
@@ -55,6 +81,7 @@ public abstract class MetaServer extends Thread {
         } 
     }
 
+    @Override
     public void run() {
         this.setName(this.getClass().getSimpleName());
         try {
@@ -115,8 +142,8 @@ public abstract class MetaServer extends Thread {
             }
         }
         workers.clear();
-        clients.clear();
-        workPos=0;
+        clearClients();
+        
         resetInstance();
         System.err.println("Bye Bye cruel world!");
     }
@@ -124,10 +151,10 @@ public abstract class MetaServer extends Thread {
     private void acceptConnections() {
         try{
             java.net.Socket Ssock = server.accept();
-            if(maxConnections == -1 || clients.size() < maxConnections){
+            if(maxConnections == -1 || getClients().length < maxConnections){
                MetaClient c = newClient(Ssock);
                if(c!=null){
-                   clients.add(c);
+                   addClient(c);
                }else{
                    Ssock.close();
                }
@@ -169,8 +196,7 @@ public abstract class MetaServer extends Thread {
         java.net.Socket socker = new java.net.Socket();
         socker.connect(new java.net.InetSocketAddress(address, port));
         if(socker.isConnected()){
-            clients.add(newClient(socker));
-
+            addClient(newClient(socker));
         }
     }
     public void shutdown() {
@@ -186,12 +212,13 @@ public abstract class MetaServer extends Thread {
         broadcast(bytes);
     }
     public void broadcast(byte[] buffer){
-        for(MetaClient mc : clients){
+        for(MetaClient mc: getClients()){
+            
             try {
-                mc.send(buffer);                
+                mc.send(buffer);
             } catch (IOException ex) {
                 mc.killClient();
-                Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+                //Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
     }
@@ -200,7 +227,7 @@ public abstract class MetaServer extends Thread {
         toAllExcept(mcs,buffer);
     }
     public void toAllExcept(MetaClient[] exmcs,byte[] buffer){
-        for(MetaClient mc :clients){
+        for(MetaClient mc: getClients()){
             for(MetaClient exmc : exmcs){
                 boolean doit =true;
                 if(mc.equals(exmc)){
@@ -211,7 +238,7 @@ public abstract class MetaServer extends Thread {
                         mc.send(buffer);
                     } catch (IOException ex) {
                         mc.killClient();
-                        Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+                        //Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 }
             }
@@ -222,7 +249,7 @@ public abstract class MetaServer extends Thread {
             try {
                 mc.send(buffer);
             } catch (IOException ex) {
-                Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+                //Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
     }
@@ -256,7 +283,7 @@ public abstract class MetaServer extends Thread {
             this.setName(this.getClass().getSimpleName());
             while(alive){
                 try {
-                    for (MetaClient mc : clients) {                        
+                    for(MetaClient mc: getClients()){
                         // Unlock the client if the worker died.
                         if (mc.isLocked() && !mc.mWorker.isAlive()) {
                             mc.unlock();
@@ -306,12 +333,8 @@ public abstract class MetaServer extends Thread {
                         busy=false;
                     }
                     sleep(30);
-                } catch(java.lang.IndexOutOfBoundsException ex){
-                    //I suspect this is just a spook of concurrent arraylist modifications.
-                    //ex.printStackTrace();
-                    //System.out.println("S:"+clients.size()+" P:"+workPos + " T:"+workers.size());
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(MetaServer.class.getName()).log(Level.SEVERE, null, ex);
+                } catch(Exception ex){
+                    Logger.getLogger(MetaServer.class.getName()).log(Level.INFO, null, ex);
                 }
             }
         }
